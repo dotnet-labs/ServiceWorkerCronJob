@@ -30,6 +30,10 @@ namespace ServiceWorkerCronJobDemo.Services
             if (next.HasValue)
             {
                 var delay = next.Value - DateTimeOffset.Now;
+                if (delay.TotalMilliseconds <= 0)   // prevent non-positive values from being passed into Timer
+                {
+                    await ScheduleJob(cancellationToken);
+                }
                 _timer = new System.Timers.Timer(delay.TotalMilliseconds);
                 _timer.Elapsed += async (sender, args) =>
                 {
