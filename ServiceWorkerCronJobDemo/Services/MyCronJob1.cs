@@ -1,9 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-
-namespace ServiceWorkerCronJobDemo.Services
+﻿namespace ServiceWorkerCronJobDemo.Services
 {
     public class MyCronJob1 : CronJobService
     {
@@ -23,7 +18,7 @@ namespace ServiceWorkerCronJobDemo.Services
 
         public override Task DoWork(CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"{DateTime.Now:hh:mm:ss} CronJob 1 is working.");
+            _logger.LogInformation("{now} CronJob 1 is working.", DateTime.Now.ToString("T"));
             return Task.CompletedTask;
         }
 

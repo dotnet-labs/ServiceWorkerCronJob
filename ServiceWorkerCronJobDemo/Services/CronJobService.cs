@@ -1,15 +1,10 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Cronos;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+﻿using Cronos;
 
 namespace ServiceWorkerCronJobDemo.Services
 {
     public abstract class CronJobService : IHostedService, IDisposable
     {
-        private System.Timers.Timer _timer;
+        private System.Timers.Timer? _timer;
         private readonly CronExpression _expression;
         private readonly TimeZoneInfo _timeZoneInfo;
 
@@ -35,7 +30,7 @@ namespace ServiceWorkerCronJobDemo.Services
                     await ScheduleJob(cancellationToken);
                 }
                 _timer = new System.Timers.Timer(delay.TotalMilliseconds);
-                _timer.Elapsed += async (sender, args) =>
+                _timer.Elapsed += async (_, _) =>
                 {
                     _timer.Dispose();  // reset and dispose timer
                     _timer = null;
@@ -69,9 +64,11 @@ namespace ServiceWorkerCronJobDemo.Services
         public virtual void Dispose()
         {
             _timer?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 
+    // ReSharper disable once UnusedTypeParameter
     public interface IScheduleConfig<T>
     {
         string CronExpression { get; set; }
@@ -80,8 +77,8 @@ namespace ServiceWorkerCronJobDemo.Services
 
     public class ScheduleConfig<T> : IScheduleConfig<T>
     {
-        public string CronExpression { get; set; }
-        public TimeZoneInfo TimeZoneInfo { get; set; }
+        public string CronExpression { get; set; } = string.Empty;
+        public TimeZoneInfo TimeZoneInfo { get; set; } = TimeZoneInfo.Local;
     }
 
     public static class ScheduledServiceExtensions
