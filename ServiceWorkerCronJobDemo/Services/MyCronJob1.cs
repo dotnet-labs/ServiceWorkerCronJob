@@ -4,10 +4,11 @@
     {
         private readonly ILogger<MyCronJob1> _logger;
 
-        public MyCronJob1(IScheduleConfig<MyCronJob1> config, ILogger<MyCronJob1> logger)
+        public MyCronJob1(IScheduleConfig<MyCronJob2> config, ILogger<MyCronJob1> logger)
             : base(config.CronExpression, config.TimeZoneInfo)
         {
             _logger = logger;
+
         }
 
         public override Task StartAsync(CancellationToken cancellationToken)

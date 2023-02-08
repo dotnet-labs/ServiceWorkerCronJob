@@ -10,6 +10,14 @@
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
+            if (config.GetType().GenericTypeArguments[0].Name != GetType().Name)
+            {
+                throw new ArgumentException("Incorrect JobType name for IScheduleConfig.");
+            }
+            if (logger.GetType().GenericTypeArguments[0].Name != GetType().Name)
+            {
+                throw new ArgumentException("Incorrect JobType name for ILogger.");
+            }
         }
 
         public override Task StartAsync(CancellationToken cancellationToken)
