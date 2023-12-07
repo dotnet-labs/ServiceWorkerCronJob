@@ -5,19 +5,12 @@
         Task DoWork(CancellationToken cancellationToken);
     }
 
-    public class MyScopedService : IMyScopedService
+    public class MyScopedService(ILogger<MyScopedService> logger) : IMyScopedService
     {
-        private readonly ILogger<MyScopedService> _logger;
-
-        public MyScopedService(ILogger<MyScopedService> logger)
+        public Task DoWork(CancellationToken cancellationToken)
         {
-            _logger = logger;
-        }
-
-        public async Task DoWork(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("{now} MyScopedService is working.", DateTime.Now.ToString("T"));
-            await Task.Delay(1000 * 20, cancellationToken);
+            logger.LogInformation("{now} MyScopedService is working.", DateTime.Now.ToString("T"));
+            return Task.Delay(1000 * 20, cancellationToken);
         }
     }
 }

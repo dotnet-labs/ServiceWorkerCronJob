@@ -4,13 +4,6 @@ namespace ServiceWorkerCronJobDemo
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
-        public IConfiguration Configuration { get; }
-
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
@@ -20,18 +13,18 @@ namespace ServiceWorkerCronJobDemo
             services.AddCronJob<MyCronJob1>(c =>
             {
                 c.TimeZoneInfo = TimeZoneInfo.Local;
-                c.CronExpression = @"*/5 * * * *";
+                c.CronExpression = "*/5 * * * *";
             });
             // MyCronJob2 calls the scoped service MyScopedService
             services.AddCronJob<MyCronJob2>(c =>
             {
                 c.TimeZoneInfo = TimeZoneInfo.Local;
-                c.CronExpression = @"* * * * *";
+                c.CronExpression = "* * * * *";
             });
             services.AddCronJob<MyCronJob3>(c =>
             {
                 c.TimeZoneInfo = TimeZoneInfo.Local;
-                c.CronExpression = @"50 12 * * *";
+                c.CronExpression = "50 12 * * *";
             });
         }
 

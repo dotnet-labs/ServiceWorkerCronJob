@@ -2,17 +2,10 @@
 
 namespace ServiceWorkerCronJobDemo.Services
 {
-    public abstract class CronJobService : IHostedService, IDisposable
+    public abstract class CronJobService(string cronExpression, TimeZoneInfo timeZoneInfo) : IHostedService, IDisposable
     {
         private System.Timers.Timer? _timer;
-        private readonly CronExpression _expression;
-        private readonly TimeZoneInfo _timeZoneInfo;
-
-        protected CronJobService(string cronExpression, TimeZoneInfo timeZoneInfo)
-        {
-            _expression = CronExpression.Parse(cronExpression);
-            _timeZoneInfo = timeZoneInfo;
-        }
+        private readonly CronExpression _expression = CronExpression.Parse(cronExpression);
 
         public virtual async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -21,7 +14,7 @@ namespace ServiceWorkerCronJobDemo.Services
 
         protected virtual async Task ScheduleJob(CancellationToken cancellationToken)
         {
-            var next = _expression.GetNextOccurrence(DateTimeOffset.Now, _timeZoneInfo);
+            var next = _expression.GetNextOccurrence(DateTimeOffset.Now, timeZoneInfo);
             if (next.HasValue)
             {
                 var delay = next.Value - DateTimeOffset.Now;
@@ -93,7 +86,7 @@ namespace ServiceWorkerCronJobDemo.Services
             options.Invoke(config);
             if (string.IsNullOrWhiteSpace(config.CronExpression))
             {
-                throw new ArgumentNullException(nameof(ScheduleConfig<T>.CronExpression), @"Empty Cron Expression is not allowed.");
+                throw new ArgumentNullException(nameof(options), "Empty Cron Expression is not allowed.");
             }
 
             services.AddSingleton<IScheduleConfig<T>>(config);
