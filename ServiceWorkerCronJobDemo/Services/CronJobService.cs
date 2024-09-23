@@ -6,11 +6,16 @@ namespace ServiceWorkerCronJobDemo.Services
     {
         private System.Timers.Timer? _timer;
         private readonly CronExpression _expression = CronExpression.Parse(cronExpression);
+        private Task? _executingTask;
+        private CancellationTokenSource _stoppingCts = new();
 
-        public virtual async Task StartAsync(CancellationToken cancellationToken)
+        public virtual Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("{jobName}: started with expression [{expression}].", GetType().Name, cronExpression);
-            await ScheduleJob(cancellationToken);
+            _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            _executingTask = ScheduleJob(_stoppingCts.Token);
+            return _executingTask.IsCompleted ? _executingTask : Task.CompletedTask;
         }
 
         protected virtual async Task ScheduleJob(CancellationToken cancellationToken)
@@ -66,13 +71,16 @@ namespace ServiceWorkerCronJobDemo.Services
         {
             logger.LogInformation("{jobName}: stopping...", GetType().Name);
             _timer?.Stop();
-            await Task.CompletedTask;
+            _timer?.Dispose();
+            await _stoppingCts.CancelAsync();
             logger.LogInformation("{jobName}: stopped.", GetType().Name);
         }
 
         public virtual void Dispose()
         {
             _timer?.Dispose();
+            _executingTask?.Dispose();
+            _stoppingCts.Dispose();
             GC.SuppressFinalize(this);
         }
     }
