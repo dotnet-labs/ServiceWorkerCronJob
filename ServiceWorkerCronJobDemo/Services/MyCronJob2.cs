@@ -20,24 +20,12 @@
             }
         }
 
-        public override Task StartAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("CronJob 2 starts.");
-            return base.StartAsync(cancellationToken);
-        }
-
         public override async Task DoWork(CancellationToken cancellationToken)
         {
             _logger.LogInformation("{now} CronJob 2 is working.", DateTime.Now.ToString("T"));
             using var scope = _serviceProvider.CreateScope();
             var svc = scope.ServiceProvider.GetRequiredService<IMyScopedService>();
             await svc.DoWork(cancellationToken);
-        }
-
-        public override Task StopAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("CronJob 2 is stopping.");
-            return base.StopAsync(cancellationToken);
         }
     }
 }

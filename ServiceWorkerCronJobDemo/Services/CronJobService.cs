@@ -8,6 +8,7 @@ namespace ServiceWorkerCronJobDemo.Services
         private readonly CronExpression _expression = CronExpression.Parse(cronExpression);
         private Task? _executingTask;
         private CancellationTokenSource _stoppingCts = new();
+        private readonly SemaphoreSlim _schedulerCycle = new(0);
 
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
@@ -20,46 +21,55 @@ namespace ServiceWorkerCronJobDemo.Services
 
         protected virtual async Task ScheduleJob(CancellationToken cancellationToken)
         {
-            var next = _expression.GetNextOccurrence(DateTimeOffset.Now, timeZoneInfo);
-            if (next.HasValue)
+            try
             {
-                logger.LogInformation("{jobName}: scheduled next run at {nextRun}", GetType().Name, next.ToString());
-                var delay = next.Value - DateTimeOffset.Now;
-                if (delay.TotalMilliseconds <= 0)   // prevent non-positive values from being passed into Timer
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    await ScheduleJob(cancellationToken);
-                    return;
+                    var next = _expression.GetNextOccurrence(DateTimeOffset.Now, timeZoneInfo);
+                    if (!next.HasValue) continue;
+
+                    logger.LogInformation("{jobName}: scheduled next run at {nextRun}", GetType().Name, next.ToString());
+                    var delay = next.Value - DateTimeOffset.Now;
+                    if (delay.TotalMilliseconds <= 0) // prevent non-positive values from being passed into Timer
+                    {
+                        logger.LogInformation("{LoggerName}: scheduled next run is in the past. Moving to next.", GetType().Name);
+                        continue;
+                    }
+
+                    _timer = new System.Timers.Timer(delay.TotalMilliseconds);
+                    _timer.Elapsed += async (_, _) =>
+                    {
+                        try
+                        {
+                            _timer.Dispose(); // reset and dispose timer
+                            _timer = null;
+
+                            if (!cancellationToken.IsCancellationRequested)
+                            {
+                                await DoWork(cancellationToken);
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            logger.LogInformation("{LoggerName}: job received cancellation signal, stopping...", GetType().Name);
+                        }
+                        catch (Exception e)
+                        {
+                            logger.LogError(e, "{LoggerName}: an error happened during execution of the job", GetType().Name);
+                        }
+                        finally
+                        {
+                            _schedulerCycle.Release(); // Let the outer loop know that the next occurrence can be calculated.
+                        }
+                    };
+                    _timer.Start();
+                    await _schedulerCycle.WaitAsync(cancellationToken); // Wait nicely for any timer result.
                 }
-                _timer = new System.Timers.Timer(delay.TotalMilliseconds);
-                _timer.Elapsed += async (_, _) =>
-                {
-                    try
-                    {
-                        _timer.Dispose(); // reset and dispose timer
-                        _timer = null;
-
-                        if (!cancellationToken.IsCancellationRequested)
-                        {
-                            await DoWork(cancellationToken);
-                        }
-
-                        if (!cancellationToken.IsCancellationRequested)
-                        {
-                            await ScheduleJob(cancellationToken); // reschedule next
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        logger.LogInformation("{LoggerName}: job received cancellation signal, stopping...", GetType().Name);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogError(e, "{LoggerName}: an error happened during execution of the job", GetType().Name);
-                    }
-                };
-                _timer.Start();
             }
-            await Task.CompletedTask;
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("{LoggerName}: job received cancellation signal, stopping...", GetType().Name);
+            }
         }
 
         public virtual async Task DoWork(CancellationToken cancellationToken)
@@ -80,6 +90,7 @@ namespace ServiceWorkerCronJobDemo.Services
         {
             _timer?.Dispose();
             _executingTask?.Dispose();
+            _schedulerCycle.Dispose();
             _stoppingCts.Dispose();
             GC.SuppressFinalize(this);
         }
