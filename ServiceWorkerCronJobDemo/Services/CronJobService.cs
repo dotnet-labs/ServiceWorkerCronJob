@@ -2,13 +2,14 @@
 
 namespace ServiceWorkerCronJobDemo.Services
 {
-    public abstract class CronJobService(string cronExpression, TimeZoneInfo timeZoneInfo) : IHostedService, IDisposable
+    public abstract class CronJobService(string cronExpression, TimeZoneInfo timeZoneInfo, ILogger logger) : IHostedService, IDisposable
     {
         private System.Timers.Timer? _timer;
         private readonly CronExpression _expression = CronExpression.Parse(cronExpression);
 
         public virtual async Task StartAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("{jobName}: started with expression [{expression}].", GetType().Name, cronExpression);
             await ScheduleJob(cancellationToken);
         }
 
@@ -17,6 +18,7 @@ namespace ServiceWorkerCronJobDemo.Services
             var next = _expression.GetNextOccurrence(DateTimeOffset.Now, timeZoneInfo);
             if (next.HasValue)
             {
+                logger.LogInformation("{jobName}: scheduled next run at {nextRun}", GetType().Name, next.ToString());
                 var delay = next.Value - DateTimeOffset.Now;
                 if (delay.TotalMilliseconds <= 0)   // prevent non-positive values from being passed into Timer
                 {
@@ -26,17 +28,28 @@ namespace ServiceWorkerCronJobDemo.Services
                 _timer = new System.Timers.Timer(delay.TotalMilliseconds);
                 _timer.Elapsed += async (_, _) =>
                 {
-                    _timer.Dispose();  // reset and dispose timer
-                    _timer = null;
-
-                    if (!cancellationToken.IsCancellationRequested)
+                    try
                     {
-                        await DoWork(cancellationToken);
+                        _timer.Dispose(); // reset and dispose timer
+                        _timer = null;
+
+                        if (!cancellationToken.IsCancellationRequested)
+                        {
+                            await DoWork(cancellationToken);
+                        }
+
+                        if (!cancellationToken.IsCancellationRequested)
+                        {
+                            await ScheduleJob(cancellationToken); // reschedule next
+                        }
                     }
-
-                    if (!cancellationToken.IsCancellationRequested)
+                    catch (OperationCanceledException)
                     {
-                        await ScheduleJob(cancellationToken);    // reschedule next
+                        logger.LogInformation("{LoggerName}: job received cancellation signal, stopping...", GetType().Name);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, "{LoggerName}: an error happened during execution of the job", GetType().Name);
                     }
                 };
                 _timer.Start();
@@ -51,8 +64,10 @@ namespace ServiceWorkerCronJobDemo.Services
 
         public virtual async Task StopAsync(CancellationToken cancellationToken)
         {
+            logger.LogInformation("{jobName}: stopping...", GetType().Name);
             _timer?.Stop();
             await Task.CompletedTask;
+            logger.LogInformation("{jobName}: stopped.", GetType().Name);
         }
 
         public virtual void Dispose()
@@ -81,7 +96,7 @@ namespace ServiceWorkerCronJobDemo.Services
         {
             if (options == null)
             {
-                throw new ArgumentNullException(nameof(options), @"Please provide Schedule Configurations.");
+                throw new ArgumentNullException(nameof(options), "Please provide Schedule Configurations.");
             }
             var config = new ScheduleConfig<T>();
             options.Invoke(config);

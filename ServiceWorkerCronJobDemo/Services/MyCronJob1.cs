@@ -1,7 +1,7 @@
 ﻿namespace ServiceWorkerCronJobDemo.Services
 {
     public class MyCronJob1(IScheduleConfig<MyCronJob1> config, ILogger<MyCronJob1> logger)
-        : CronJobService(config.CronExpression, config.TimeZoneInfo)
+        : CronJobService(config.CronExpression, config.TimeZoneInfo, logger)
     {
         public override Task StartAsync(CancellationToken cancellationToken)
         {

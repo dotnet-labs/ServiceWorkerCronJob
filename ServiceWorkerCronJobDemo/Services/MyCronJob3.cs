@@ -5,7 +5,7 @@
         private readonly ILogger<MyCronJob3> _logger;
 
         public MyCronJob3(IScheduleConfig<MyCronJob3> config, ILogger<MyCronJob3> logger)
-            : base(config.CronExpression, config.TimeZoneInfo)
+            : base(config.CronExpression, config.TimeZoneInfo, logger)
         {
             _logger = logger;
             if (config.GetType().GenericTypeArguments[0].Name != GetType().Name)

@@ -6,7 +6,7 @@
         private readonly IServiceProvider _serviceProvider;
 
         public MyCronJob2(IScheduleConfig<MyCronJob2> config, ILogger<MyCronJob2> logger, IServiceProvider serviceProvider)
-            : base(config.CronExpression, config.TimeZoneInfo)
+            : base(config.CronExpression, config.TimeZoneInfo, logger)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
